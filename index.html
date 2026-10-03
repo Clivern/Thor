@@ -878,6 +878,8 @@
     }
 
     function isChatModel(m) {
+      // Batch variants use a separate OpenRouter adapter and reject chat/completions.
+      if (/:batch$/i.test(m.id)) return false;
       const outs = m.outputModalities || [];
       return !outs.length || outs.includes("text");
     }

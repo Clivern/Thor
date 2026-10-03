@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Thor - OpenRouter Models by Average Cost</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f6f6f4;
+      --surface: #ffffff;
+      --ink: #111111;
+      --muted: #8a8a86;
+      --line: #ebebe8;
+      --bar: #1a1a1a;
+      --icon-bg: #f0f0ed;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "IBM Plex Sans", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 48px 24px 80px;
+    }
+
+    .page {
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 36px;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .brand svg {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+      stroke-width: 1.5;
+    }
+
+    .brand span {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar input,
+    .toolbar select {
+      font: inherit;
+      font-size: 14px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: var(--ink);
+      outline: none;
+    }
+
+    .toolbar input {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .toolbar input:focus,
+    .toolbar select:focus {
+      border-color: #c8c8c4;
+    }
+
+    .toolbar select {
+      color: var(--muted);
+      min-width: 140px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
+    }
+
+    thead th:nth-child(1),
+    thead th:nth-child(2) { text-align: left; }
+
+    thead th:nth-child(3),
+    thead th:nth-child(4),
+    thead th:nth-child(5) { text-align: right; }
+
+    tbody tr + tr td {
+      border-top: 1px solid var(--line);
+    }
+
+    tbody tr:hover td {
+      background: #fafaf8;
+    }
+
+    td {
+      padding: 14px 18px;
+      vertical-align: middle;
+    }
+
+    .rank {
+      color: var(--muted);
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+      width: 40px;
+    }
+
+    .model {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: var(--icon-bg);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      overflow: hidden;
+      font-size: 12px;
+      font-weight: 600;
+      color: #555;
+    }
+
+    .icon img {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+    }
+
+    .model-name {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 320px;
+    }
+
+    .model-id {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 320px;
+    }
+
+    .cost-cell {
+      text-align: right;
+      width: 120px;
+    }
+
+    .cost-value {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 14px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cost-bar-track {
+      margin-top: 8px;
+      height: 3px;
+      width: 72px;
+      margin-left: auto;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .cost-bar {
+      height: 3px;
+      background: var(--bar);
+      border-radius: 1px;
+      min-width: 3px;
+    }
+
+    .vs, .ctx {
+      text-align: right;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 14px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .vs { width: 100px; }
+    .ctx { width: 110px; }
+
+    .status {
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .count {
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .copyright {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .copyright a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .copyright a:hover {
+      color: var(--ink);
+    }
+
+    @media (max-width: 700px) {
+      body { padding: 28px 14px 60px; }
+      .model-name,
+      .model-id { max-width: 160px; }
+      thead th:nth-child(5),
+      td:nth-child(5) { display: none; }
+      td, thead th { padding: 12px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <a class="brand" href="#" aria-label="Thor">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>
+        <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>
+        <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>
+        <path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/>
+        <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/>
+        <path d="M3.023 10.125a4 4 0 0 1 0-.25"/>
+        <path d="M20.977 10.125a4 4 0 0 0 0-.25"/>
+        <path d="M12 18v-4"/>
+        <path d="M12 13a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2"/>
+      </svg>
+      <span>Thor</span>
+    </a>
+
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Search models or providers…" />
+      <select id="filter">
+        <option value="all">All models</option>
+        <option value="paid" selected>Paid only</option>
+        <option value="free">Free only</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div id="status" class="status">Loading models…</div>
+      <table id="table" hidden>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Model</th>
+            <th>Avg cost</th>
+            <th>Vs cheapest</th>
+            <th>Context</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="count" id="count"></p>
+    <p class="copyright">© <a href="https://github.com/Clivern" target="_blank" rel="noopener">Clivern</a></p>
+  </div>
+
+  <script>
+    const ICON_MAP = {
+      openai: "openai",
+      anthropic: "anthropic",
+      google: "google",
+      "meta-llama": "meta",
+      meta: "meta",
+      mistralai: "mistral",
+      mistral: "mistral",
+      deepseek: "deepseek",
+      qwen: "qwen",
+      nvidia: "nvidia",
+      "x-ai": "xai",
+      cohere: "cohere",
+      perplexity: "perplexity",
+      amazon: "aws",
+      moonshotai: "moonshot",
+      minimax: "minimax",
+      "z-ai": "zhipu",
+      "ibm-granite": "ibm",
+      microsoft: "microsoft",
+      huggingface: "huggingface",
+      together: "together",
+      fireworks: "fireworks",
+      groq: "groq",
+      ai21: "ai21",
+      nousresearch: "nous",
+      openrouter: "openrouter",
+      xiaomi: "xiaomi",
+      tencent: "tencent",
+      bytedance: "bytedance",
+      "bytedance-seed": "bytedance",
+      liquid: "liquid",
+      inception: "inception",
+      upstage: "upstage",
+      allenai: "ai2",
+      writer: "writer",
+      "inflection": "inflection",
+    };
+
+    const PROVIDER_LABEL = {
+      openai: "OpenAI",
+      anthropic: "Anthropic",
+      google: "Google",
+      "meta-llama": "Meta",
+      meta: "Meta",
+      mistralai: "Mistral",
+      deepseek: "DeepSeek",
+      qwen: "Qwen",
+      nvidia: "NVIDIA",
+      "x-ai": "xAI",
+      cohere: "Cohere",
+      perplexity: "Perplexity",
+      amazon: "Amazon",
+      moonshotai: "Moonshot",
+      minimax: "MiniMax",
+      "z-ai": "Z.ai",
+      openrouter: "OpenRouter",
+      "ibm-granite": "IBM",
+      xiaomi: "Xiaomi",
+      tencent: "Tencent",
+      "bytedance-seed": "ByteDance",
+      nousresearch: "Nous",
+      upstage: "Upstage",
+    };
+
+    let models = [];
+
+    function providerSlug(id) {
+      return id.split("/")[0].replace(/^~/, "");
+    }
+
+    function providerLabel(slug) {
+      return PROVIDER_LABEL[slug] || slug.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+
+    function displayName(model) {
+      const name = model.name || model.id;
+      const parts = name.split(": ");
+      return parts.length > 1 ? parts.slice(1).join(": ") : name;
+    }
+
+    function avgCostPerMillion(model) {
+      const prompt = Number(model.pricing?.prompt || 0);
+      const completion = Number(model.pricing?.completion || 0);
+      if (prompt < 0 || completion < 0) return -1;
+      return ((prompt + completion) / 2) * 1e6;
+    }
+
+    function formatCost(n) {
+      if (n < 0) return "Variable";
+      if (n === 0) return "Free";
+      if (n < 0.01) return "$" + n.toFixed(4);
+      if (n < 1) return "$" + n.toFixed(3);
+      if (n < 10) return "$" + n.toFixed(2);
+      return "$" + n.toFixed(1);
+    }
+
+    function formatVs(ratio) {
+      if (!Number.isFinite(ratio) || ratio <= 0) return "—";
+      if (ratio < 10) return ratio.toFixed(1) + "x";
+      if (ratio < 100) return Math.round(ratio) + "x";
+      return Math.round(ratio).toLocaleString() + "x";
+    }
+
+    function formatContext(n) {
+      if (!n) return "—";
+      if (n >= 1e6) {
+        const m = n / 1e6;
+        return (Number.isInteger(m) ? m : m.toFixed(1)) + "M";
+      }
+      if (n >= 1000) {
+        const k = Math.round(n / 1000);
+        return k + "k";
+      }
+      return String(n);
+    }
+
+    function iconUrl(slug) {
+      const key = ICON_MAP[slug];
+      if (!key) return null;
+      return `https://unpkg.com/@lobehub/icons-static-svg@1.64.0/icons/${key}.svg`;
+    }
+
+    function iconHtml(slug) {
+      const url = iconUrl(slug);
+      const letter = providerLabel(slug).charAt(0);
+      if (!url) return letter;
+      return `<img src="${url}" alt="" onerror="this.replaceWith(document.createTextNode('${letter}'))" />`;
+    }
+
+    function barWidth(cost, cheapest) {
+      if (cost <= 0 || cheapest <= 0) return 4;
+      const ratio = cost / cheapest;
+      const pct = (Math.log10(ratio) / Math.log10(25)) * 100;
+      return Math.max(6, Math.min(100, pct || 6));
+    }
+
+    function filtered() {
+      const q = document.getElementById("search").value.trim().toLowerCase();
+      const mode = document.getElementById("filter").value;
+
+      return models.filter((m) => {
+        if (mode === "paid" && m.avg <= 0) return false;
+        if (mode === "free" && m.avg !== 0) return false;
+        if (!q) return true;
+        return (
+          m.name.toLowerCase().includes(q) ||
+          m.provider.toLowerCase().includes(q) ||
+          m.id.toLowerCase().includes(q)
+        );
+      });
+    }
+
+    function render() {
+      const rows = filtered();
+      const status = document.getElementById("status");
+      const table = document.getElementById("table");
+      const tbody = document.getElementById("tbody");
+      const count = document.getElementById("count");
+
+      if (!rows.length) {
+        table.hidden = true;
+        status.hidden = false;
+        status.textContent = "No models match.";
+        count.textContent = "";
+        return;
+      }
+
+      status.hidden = true;
+      table.hidden = false;
+
+      const paid = rows.filter((m) => m.avg > 0);
+      const cheapest = paid.length ? Math.min(...paid.map((m) => m.avg)) : 0;
+
+      tbody.innerHTML = rows.map((m, i) => {
+        const vs = m.avg > 0 ? formatVs(m.avg / cheapest) : "—";
+        const width = m.avg > 0 ? barWidth(m.avg, cheapest) : 4;
+        return `
+          <tr>
+            <td class="rank">${i + 1}</td>
+            <td>
+              <div class="model">
+                <div class="icon">${iconHtml(m.slug)}</div>
+                <div>
+                  <div class="model-name" title="${m.name}">${m.name}</div>
+                  <div class="model-id" title="${m.id}">${m.id}</div>
+                </div>
+              </div>
+            </td>
+            <td class="cost-cell">
+              <div class="cost-value">${formatCost(m.avg)}</div>
+              <div class="cost-bar-track">
+                <div class="cost-bar" style="width:${width}%"></div>
+              </div>
+            </td>
+            <td class="vs">${vs}</td>
+            <td class="ctx">${formatContext(m.context)}</td>
+          </tr>
+        `;
+      }).join("");
+
+      count.textContent = `Showing ${rows.length.toLocaleString()} of ${models.length.toLocaleString()} models`;
+    }
+
+    async function load() {
+      const res = await fetch("https://openrouter.ai/api/v1/models");
+      const data = await res.json();
+
+      models = data.data
+        .map((m) => {
+          const slug = providerSlug(m.id);
+          return {
+            id: m.id,
+            name: displayName(m),
+            slug,
+            provider: providerLabel(slug),
+            avg: avgCostPerMillion(m),
+            context: m.context_length || 0,
+          };
+        })
+        .sort((a, b) => {
+          const av = a.avg < 0 ? Infinity : a.avg;
+          const bv = b.avg < 0 ? Infinity : b.avg;
+          return av - bv || a.name.localeCompare(b.name);
+        });
+
+      render();
+    }
+
+    document.getElementById("search").addEventListener("input", render);
+    document.getElementById("filter").addEventListener("change", render);
+    load();
+  </script>
+</body>
+</html>

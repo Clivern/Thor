@@ -97,7 +97,7 @@
       font: inherit;
       font-size: 14px;
       border: 1px solid var(--line);
-      background: var(--surface);
+      background-color: var(--surface);
       border-radius: 8px;
       padding: 9px 12px;
       color: var(--ink);
@@ -114,9 +114,24 @@
       border-color: #c8c8c4;
     }
 
-    .toolbar select {
+    .toolbar select,
+    .play-field select {
+      appearance: none;
+      -webkit-appearance: none;
       color: var(--muted);
       min-width: 140px;
+      padding-right: 36px;
+      background-color: var(--surface);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 16 16'%3E%3Cpath stroke='%238a8a86' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 14px;
+    }
+
+    .play-field select {
+      color: var(--ink);
+      background-color: var(--bg);
+      min-width: 0;
     }
 
     .card {
@@ -312,7 +327,7 @@
       font: inherit;
       font-size: 14px;
       border: 1px solid var(--line);
-      background: var(--bg);
+      background-color: var(--bg);
       border-radius: 8px;
       padding: 10px 12px;
       color: var(--ink);
@@ -320,11 +335,15 @@
       width: 100%;
     }
 
+    .play-field select {
+      padding-right: 36px;
+    }
+
     .play-field input:focus,
     .play-field select:focus,
     .play-composer textarea:focus {
       border-color: #c8c8c4;
-      background: var(--surface);
+      background-color: var(--surface);
     }
 
     .play-key-row {

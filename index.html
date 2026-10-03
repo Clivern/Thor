@@ -304,8 +304,8 @@
     <div class="toolbar">
       <input id="search" type="search" placeholder="Search models or providers…" />
       <select id="filter">
-        <option value="all">All models</option>
-        <option value="paid" selected>Paid only</option>
+        <option value="all" selected>All models</option>
+        <option value="paid">Paid only</option>
         <option value="free">Free only</option>
       </select>
     </div>
@@ -328,7 +328,7 @@
       </table>
     </div>
     <p class="count" id="count"></p>
-    <p class="copyright">© <a href="https://github.com/Clivern" target="_blank" rel="noopener">Clivern</a></p>
+    <p class="copyright">Copyright © 2026 <a href="https://github.com/Clivern" target="_blank" rel="noopener">Clivern</a></p>
   </div>
 
   <script>
@@ -543,7 +543,6 @@
     }
 
     async function load() {
-      // Default list omits decisions models (e.g. typesafe/jev-1.13); merge both.
       const [main, decisions] = await Promise.all([
         fetch("https://openrouter.ai/api/v1/models").then((r) => r.json()),
         fetch("https://openrouter.ai/api/v1/models?output_modalities=decisions").then((r) => r.json()),

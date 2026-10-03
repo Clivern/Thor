@@ -125,17 +125,105 @@
     thead th:nth-child(6),
     thead th:nth-child(7) { text-align: right; }
 
-    tbody tr + tr td {
+    tbody tr.model-row + tr.model-row td,
+    tbody tr.model-row + tr.detail-row td,
+    tbody tr.detail-row + tr.model-row td {
       border-top: 1px solid var(--line);
     }
 
-    tbody tr:hover td {
+    tbody tr.model-row {
+      cursor: pointer;
+    }
+
+    tbody tr.model-row:hover td,
+    tbody tr.model-row.is-open td {
       background: #fafaf8;
+    }
+
+    tbody tr.model-row:focus-visible {
+      outline: 2px solid #c8c8c4;
+      outline-offset: -2px;
     }
 
     td {
       padding: 14px 18px;
       vertical-align: middle;
+    }
+
+    .chevron {
+      width: 16px;
+      height: 16px;
+      color: var(--muted);
+      flex-shrink: 0;
+      transition: transform 0.15s ease;
+    }
+
+    tr.model-row.is-open .chevron {
+      transform: rotate(90deg);
+      color: var(--ink);
+    }
+
+    .detail-row td {
+      padding: 0 18px 18px 70px;
+      background: #fafaf8;
+    }
+
+    .detail {
+      max-width: 720px;
+      padding-top: 2px;
+    }
+
+    .detail-desc {
+      font-size: 13px;
+      line-height: 1.55;
+      color: #3a3a38;
+      margin-bottom: 14px;
+    }
+
+    .detail-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin-bottom: 14px;
+    }
+
+    .detail-meta span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .detail-meta strong {
+      font-weight: 500;
+      color: var(--ink);
+      margin-left: 4px;
+    }
+
+    .detail-params {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .detail-params span {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      color: #555;
+      background: var(--icon-bg);
+      border-radius: 4px;
+      padding: 3px 7px;
+    }
+
+    .detail-link {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid #d0d0cc;
+    }
+
+    .detail-link:hover {
+      border-bottom-color: var(--ink);
     }
 
     .rank {
@@ -267,7 +355,8 @@
       .model-name,
       .model-id { max-width: 220px; }
       thead th:nth-child(7),
-      td:nth-child(7) { display: none; }
+      tr.model-row td:nth-child(7) { display: none; }
+      .detail-row td { padding-left: 58px; }
     }
 
     @media (max-width: 700px) {
@@ -275,12 +364,14 @@
       .model-name,
       .model-id { max-width: 140px; }
       thead th:nth-child(5),
-      td:nth-child(5),
+      tr.model-row td:nth-child(5),
       thead th:nth-child(6),
-      td:nth-child(6),
+      tr.model-row td:nth-child(6),
       thead th:nth-child(7),
-      td:nth-child(7) { display: none; }
+      tr.model-row td:nth-child(7) { display: none; }
       td, thead th { padding: 12px 12px; }
+      .detail-row td { padding: 0 12px 14px 12px; }
+      .chevron { display: none; }
     }
   </style>
 </head>
@@ -398,6 +489,16 @@
     };
 
     let models = [];
+    let openId = null;
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
 
     function providerSlug(id) {
       return id.split("/")[0].replace(/^~/, "");
@@ -473,6 +574,45 @@
       return Math.max(6, Math.min(100, pct || 6));
     }
 
+    function formatModalities(list) {
+      if (!list?.length) return "—";
+      return list.join(", ");
+    }
+
+    function detailHtml(m) {
+      const desc = m.description
+        ? `<p class="detail-desc">${escapeHtml(m.description)}</p>`
+        : `<p class="detail-desc">No description available.</p>`;
+
+      const maxOut = m.maxOutput ? formatContext(m.maxOutput) : "—";
+      const tokenizer = m.tokenizer || "—";
+      const inputs = formatModalities(m.inputModalities);
+      const outputs = formatModalities(m.outputModalities);
+
+      const params = (m.supportedParameters || [])
+        .slice(0, 12)
+        .map((p) => `<span>${escapeHtml(p)}</span>`)
+        .join("");
+
+      const paramsBlock = params
+        ? `<div class="detail-params">${params}</div>`
+        : "";
+
+      const href = `https://openrouter.ai/${escapeHtml(m.id)}`;
+
+      return `
+        ${desc}
+        <div class="detail-meta">
+          <span>Input<strong>${escapeHtml(inputs)}</strong></span>
+          <span>Output<strong>${escapeHtml(outputs)}</strong></span>
+          <span>Max output<strong>${escapeHtml(maxOut)}</strong></span>
+          <span>Tokenizer<strong>${escapeHtml(tokenizer)}</strong></span>
+        </div>
+        ${paramsBlock}
+        <a class="detail-link" href="${href}" target="_blank" rel="noopener">View on OpenRouter</a>
+      `;
+    }
+
     function filtered() {
       const q = document.getElementById("search").value.trim().toLowerCase();
       const mode = document.getElementById("filter").value;
@@ -484,7 +624,8 @@
         return (
           m.name.toLowerCase().includes(q) ||
           m.provider.toLowerCase().includes(q) ||
-          m.id.toLowerCase().includes(q)
+          m.id.toLowerCase().includes(q) ||
+          (m.description && m.description.toLowerCase().includes(q))
         );
       });
     }
@@ -495,6 +636,8 @@
       const table = document.getElementById("table");
       const tbody = document.getElementById("tbody");
       const count = document.getElementById("count");
+
+      if (openId && !rows.some((m) => m.id === openId)) openId = null;
 
       if (!rows.length) {
         table.hidden = true;
@@ -513,15 +656,21 @@
       tbody.innerHTML = rows.map((m, i) => {
         const vs = m.avg > 0 ? formatVs(m.avg / cheapest) : "—";
         const width = m.avg > 0 ? barWidth(m.avg, cheapest) : 4;
+        const open = openId === m.id;
+        const name = escapeHtml(m.name);
+        const id = escapeHtml(m.id);
         return `
-          <tr>
+          <tr class="model-row${open ? " is-open" : ""}" data-id="${id}" tabindex="0" aria-expanded="${open}">
             <td class="rank">${i + 1}</td>
             <td>
               <div class="model">
+                <svg class="chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
                 <div class="icon">${iconHtml(m.slug)}</div>
                 <div>
-                  <div class="model-name" title="${m.name}">${m.name}</div>
-                  <div class="model-id" title="${m.id}">${m.id}</div>
+                  <div class="model-name" title="${name}">${name}</div>
+                  <div class="model-id" title="${id}">${id}</div>
                 </div>
               </div>
             </td>
@@ -536,10 +685,22 @@
             <td class="vs">${vs}</td>
             <td class="ctx">${formatContext(m.context)}</td>
           </tr>
+          ${open ? `
+            <tr class="detail-row">
+              <td colspan="7">
+                <div class="detail">${detailHtml(m)}</div>
+              </td>
+            </tr>
+          ` : ""}
         `;
       }).join("");
 
       count.textContent = `Showing ${rows.length.toLocaleString()} of ${models.length.toLocaleString()} models`;
+    }
+
+    function toggleRow(id) {
+      openId = openId === id ? null : id;
+      render();
     }
 
     async function load() {
@@ -567,6 +728,12 @@
             output,
             avg: avgCostPerMillion(input, output),
             context: m.context_length || 0,
+            description: m.description || "",
+            inputModalities: m.architecture?.input_modalities || [],
+            outputModalities: m.architecture?.output_modalities || [],
+            tokenizer: m.architecture?.tokenizer || "",
+            maxOutput: m.top_provider?.max_completion_tokens || 0,
+            supportedParameters: m.supported_parameters || [],
           };
         })
         .sort((a, b) => {
@@ -580,6 +747,22 @@
 
     document.getElementById("search").addEventListener("input", render);
     document.getElementById("filter").addEventListener("change", render);
+
+    document.getElementById("tbody").addEventListener("click", (e) => {
+      if (e.target.closest("a")) return;
+      const row = e.target.closest("tr.model-row");
+      if (!row) return;
+      toggleRow(row.dataset.id);
+    });
+
+    document.getElementById("tbody").addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const row = e.target.closest("tr.model-row");
+      if (!row) return;
+      e.preventDefault();
+      toggleRow(row.dataset.id);
+    });
+
     load();
   </script>
 </body>

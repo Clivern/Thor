@@ -30,7 +30,7 @@
     }
 
     .page {
-      max-width: 920px;
+      max-width: 1080px;
       margin: 0 auto;
     }
 
@@ -121,7 +121,9 @@
 
     thead th:nth-child(3),
     thead th:nth-child(4),
-    thead th:nth-child(5) { text-align: right; }
+    thead th:nth-child(5),
+    thead th:nth-child(6),
+    thead th:nth-child(7) { text-align: right; }
 
     tbody tr + tr td {
       border-top: 1px solid var(--line);
@@ -193,7 +195,7 @@
 
     .cost-cell {
       text-align: right;
-      width: 120px;
+      width: 100px;
     }
 
     .cost-value {
@@ -219,7 +221,7 @@
       min-width: 3px;
     }
 
-    .vs, .ctx {
+    .io, .vs, .ctx {
       text-align: right;
       font-family: "IBM Plex Mono", monospace;
       font-size: 14px;
@@ -228,6 +230,7 @@
       white-space: nowrap;
     }
 
+    .io { width: 90px; }
     .vs { width: 100px; }
     .ctx { width: 110px; }
 
@@ -260,12 +263,23 @@
       color: var(--ink);
     }
 
+    @media (max-width: 900px) {
+      .model-name,
+      .model-id { max-width: 220px; }
+      thead th:nth-child(7),
+      td:nth-child(7) { display: none; }
+    }
+
     @media (max-width: 700px) {
       body { padding: 28px 14px 60px; }
       .model-name,
-      .model-id { max-width: 160px; }
+      .model-id { max-width: 140px; }
       thead th:nth-child(5),
-      td:nth-child(5) { display: none; }
+      td:nth-child(5),
+      thead th:nth-child(6),
+      td:nth-child(6),
+      thead th:nth-child(7),
+      td:nth-child(7) { display: none; }
       td, thead th { padding: 12px 12px; }
     }
   </style>
@@ -303,6 +317,8 @@
           <tr>
             <th>#</th>
             <th>Model</th>
+            <th>Input</th>
+            <th>Output</th>
             <th>Avg cost</th>
             <th>Vs cheapest</th>
             <th>Context</th>
@@ -397,11 +413,15 @@
       return parts.length > 1 ? parts.slice(1).join(": ") : name;
     }
 
-    function avgCostPerMillion(model) {
-      const prompt = Number(model.pricing?.prompt || 0);
-      const completion = Number(model.pricing?.completion || 0);
-      if (prompt < 0 || completion < 0) return -1;
-      return ((prompt + completion) / 2) * 1e6;
+    function costPerMillion(price) {
+      const n = Number(price || 0);
+      if (n < 0) return -1;
+      return n * 1e6;
+    }
+
+    function avgCostPerMillion(input, output) {
+      if (input < 0 || output < 0) return -1;
+      return (input + output) / 2;
     }
 
     function formatCost(n) {
@@ -505,6 +525,8 @@
                 </div>
               </div>
             </td>
+            <td class="io">${formatCost(m.input)}</td>
+            <td class="io">${formatCost(m.output)}</td>
             <td class="cost-cell">
               <div class="cost-value">${formatCost(m.avg)}</div>
               <div class="cost-bar-track">
@@ -521,18 +543,30 @@
     }
 
     async function load() {
-      const res = await fetch("https://openrouter.ai/api/v1/models");
-      const data = await res.json();
+      // Default list omits decisions models (e.g. typesafe/jev-1.13); merge both.
+      const [main, decisions] = await Promise.all([
+        fetch("https://openrouter.ai/api/v1/models").then((r) => r.json()),
+        fetch("https://openrouter.ai/api/v1/models?output_modalities=decisions").then((r) => r.json()),
+      ]);
 
-      models = data.data
+      const byId = new Map();
+      for (const m of [...(main.data || []), ...(decisions.data || [])]) {
+        byId.set(m.id, m);
+      }
+
+      models = [...byId.values()]
         .map((m) => {
           const slug = providerSlug(m.id);
+          const input = costPerMillion(m.pricing?.prompt);
+          const output = costPerMillion(m.pricing?.completion);
           return {
             id: m.id,
             name: displayName(m),
             slug,
             provider: providerLabel(slug),
-            avg: avgCostPerMillion(m),
+            input,
+            output,
+            avg: avgCostPerMillion(input, output),
             context: m.context_length || 0,
           };
         })

@@ -347,6 +347,19 @@
       line-height: 1.45;
     }
 
+
+    .play-system-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     .play-field input:focus,
     .play-field select:focus,
     .play-field textarea:focus,
@@ -829,7 +842,11 @@
           <select id="play-model"></select>
         </div>
         <div class="play-field">
-          <label for="play-system">System prompt</label>
+          <label for="play-system-preset">System prompt</label>
+          <select id="play-system-preset"></select>
+        </div>
+        <div class="play-field" id="play-system-field">
+          <label for="play-system" class="play-system-label">Prompt</label>
           <textarea id="play-system" rows="3" placeholder="Optional instructions for the model…"></textarea>
         </div>
       </div>

@@ -323,6 +323,7 @@
 
     .play-field input,
     .play-field select,
+    .play-field textarea,
     .play-composer textarea {
       font: inherit;
       font-size: 14px;
@@ -339,8 +340,16 @@
       padding-right: 36px;
     }
 
+    .play-field textarea {
+      min-height: 72px;
+      resize: vertical;
+      font-family: inherit;
+      line-height: 1.45;
+    }
+
     .play-field input:focus,
     .play-field select:focus,
+    .play-field textarea:focus,
     .play-composer textarea:focus {
       border-color: #c8c8c4;
       background-color: var(--surface);
@@ -739,6 +748,14 @@
       .play-key-row { flex-direction: column; }
       .play-chat { min-height: 280px; }
       .to-top { right: 14px; bottom: 14px; }
+      .toolbar input,
+      .toolbar select,
+      .play-field input,
+      .play-field select,
+      .play-field textarea,
+      .play-composer textarea {
+        font-size: 16px;
+      }
     }
   </style>
 </head>
@@ -810,6 +827,10 @@
         <div class="play-field">
           <label for="play-model">Model</label>
           <select id="play-model"></select>
+        </div>
+        <div class="play-field">
+          <label for="play-system">System prompt</label>
+          <textarea id="play-system" rows="3" placeholder="Optional instructions for the model…"></textarea>
         </div>
       </div>
 
@@ -1077,7 +1098,6 @@
           ? `#playground/${encodeURIComponent(modelId)}`
           : "#playground";
         if (location.hash !== hash) history.replaceState(null, "", hash);
-        document.getElementById("play-input").focus();
       } else if (location.hash && location.hash !== "#") {
         history.replaceState(null, "", location.pathname + location.search);
       }
@@ -1085,11 +1105,18 @@
 
     function fillPlayModels(preferredId) {
       const select = document.getElementById("play-model");
-      const current = preferredId || select.value;
       const chatModels = models.filter(isChatModel);
-      select.innerHTML = chatModels.map((m) =>
-        `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)} — ${escapeHtml(m.id)}</option>`
-      ).join("");
+      const current = preferredId || select.value;
+      const needsRebuild = select.options.length !== chatModels.length;
+
+      if (needsRebuild) {
+        // Blur first so rewriting options doesn't open the native picker on mobile.
+        if (document.activeElement === select) select.blur();
+        select.innerHTML = chatModels.map((m) =>
+          `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)} — ${escapeHtml(m.id)}</option>`
+        ).join("");
+      }
+
       if (current && chatModels.some((m) => m.id === current)) select.value = current;
       else if (chatModels.length) select.selectedIndex = 0;
     }
@@ -1141,7 +1168,6 @@
 
       if (!key) {
         document.getElementById("play-status").textContent = "Add an OpenRouter API key first";
-        keyInput.focus();
         return;
       }
       if (!model) {
@@ -1152,6 +1178,8 @@
 
       if (keyInput.value.trim()) setStoredKey(keyInput.value.trim());
 
+      const system = document.getElementById("play-system").value.trim();
+
       playMessages.push({ role: "user", content: text });
       playMessages.push({ role: "assistant", content: "", pending: true });
       input.value = "";
@@ -1160,9 +1188,12 @@
       document.getElementById("play-status").textContent = "Streaming…";
       renderPlayChat();
 
-      const apiMessages = playMessages
-        .filter((m) => !m.error && m.content && !m.pending)
-        .map((m) => ({ role: m.role, content: m.content }));
+      const apiMessages = [];
+      if (system) apiMessages.push({ role: "system", content: system });
+      for (const m of playMessages) {
+        if (m.error || m.pending || !m.content) continue;
+        apiMessages.push({ role: m.role, content: m.content });
+      }
 
       playAbort = new AbortController();
 

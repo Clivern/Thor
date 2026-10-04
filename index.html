@@ -948,6 +948,11 @@
 
     const KEY_STORAGE = "thor:openrouter-key";
 
+    let systemPresets = [
+      { id: "none", label: "None", text: "" },
+      { id: "custom", label: "Custom…", text: null },
+    ];
+
     let models = [];
     let openId = null;
     let view = "models";
@@ -1136,6 +1141,71 @@
 
       if (current && chatModels.some((m) => m.id === current)) select.value = current;
       else if (chatModels.length) select.selectedIndex = 0;
+    }
+
+    function initSystemPresets(presets) {
+      const loaded = Array.isArray(presets)
+        ? presets.filter((p) => p && p.id && p.label && typeof p.text === "string")
+        : [];
+
+      systemPresets = [
+        { id: "none", label: "None", text: "" },
+        ...loaded,
+        { id: "custom", label: "Custom…", text: null },
+      ];
+
+      const select = document.getElementById("play-system-preset");
+      select.innerHTML = systemPresets.map((p) =>
+        `<option value="${escapeHtml(p.id)}">${escapeHtml(p.label)}</option>`
+      ).join("");
+      select.value = "none";
+      applySystemPreset("none");
+    }
+
+    function applySystemPreset(id) {
+      const preset = systemPresets.find((p) => p.id === id) || systemPresets[0];
+      const textarea = document.getElementById("play-system");
+      const field = document.getElementById("play-system-field");
+
+      if (preset.id === "none") {
+        textarea.value = "";
+        field.hidden = true;
+        return;
+      }
+
+      field.hidden = false;
+      if (preset.id !== "custom") {
+        textarea.value = preset.text;
+      } else if (!textarea.value.trim()) {
+        textarea.placeholder = "Write your own system prompt…";
+      }
+    }
+
+    function syncSystemPresetFromText() {
+      const text = document.getElementById("play-system").value;
+      const select = document.getElementById("play-system-preset");
+      const match = systemPresets.find((p) => p.id !== "custom" && p.id !== "none" && p.text === text);
+      if (match) {
+        select.value = match.id;
+        return;
+      }
+      if (!text.trim()) {
+        select.value = "none";
+        document.getElementById("play-system-field").hidden = true;
+        return;
+      }
+      select.value = "custom";
+      document.getElementById("play-system-field").hidden = false;
+    }
+
+    async function loadSystemPresets() {
+      try {
+        const res = await fetch("prompts.json", { cache: "no-cache" });
+        if (!res.ok) throw new Error("Failed to load prompts");
+        initSystemPresets(await res.json());
+      } catch {
+        initSystemPresets([]);
+      }
     }
 
     function syncPlayKeyUi() {
@@ -1476,6 +1546,12 @@
       history.replaceState(null, "", `#playground/${encodeURIComponent(id)}`);
     });
 
+    document.getElementById("play-system-preset").addEventListener("change", (e) => {
+      applySystemPreset(e.target.value);
+    });
+
+    document.getElementById("play-system").addEventListener("input", syncSystemPresetFromText);
+
     document.getElementById("tbody").addEventListener("click", (e) => {
       const tryBtn = e.target.closest("[data-try]");
       if (tryBtn) {
@@ -1520,6 +1596,7 @@
     syncToTop();
 
     syncPlayKeyUi();
+    loadSystemPresets();
     load();
   </script>
 </body>
